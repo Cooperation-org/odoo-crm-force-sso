@@ -29,6 +29,12 @@ class OAuthLoginForceSSO(OAuthLogin):
             request.params["redirect"] = redirect or "/web"
             providers = self.list_providers()
             if len(providers) == 1:
-                return request.redirect(
-                    providers[0]["auth_link"], code=302, local=False)
+                # Odoo builds the OAuth redirect_uri from the request root,
+                # which behind the gateway proxy comes out http even though the
+                # public host is always https at the edge. Force the callback
+                # scheme to https so it matches the IdP client registration
+                # (registering http callbacks would be insecure).
+                auth_link = providers[0]["auth_link"].replace(
+                    "redirect_uri=http%3A%2F%2F", "redirect_uri=https%3A%2F%2F")
+                return request.redirect(auth_link, code=302, local=False)
         return super().web_login(redirect=redirect, **kw)
